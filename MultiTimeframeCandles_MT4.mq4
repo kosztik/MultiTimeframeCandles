@@ -7,7 +7,8 @@
 //--- Paraméterek
 input string HigherTimeframes = "H1,H4,D1"; // Magasabb idősíkok vesszővel
 input int    BarsBack         = 30;         // Hány gyertyát mutasson visszamenőleg
-input int    RefreshSeconds   = 60;          // Frissítési időköz másodpercben
+input int    RefreshSeconds   = 60;         // Frissítési időköz másodpercben
+input int    CandleWidthPct   = 95;         // Gyertya szélessége százalékban (1-100)
 
 // H1 beállítások
 input bool   ShowH1           = false;      // H1 gyertyák mutatása
@@ -78,15 +79,25 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    double bodyTop = MathMax(open, close);
    double bodyBottom = MathMin(open, close);
    
-   // Középpont a gyertya időtartamában
+   // Gyertya szélesség számítása a százalékos érték alapján
+   int widthPercent = MathMax(1, MathMin(100, CandleWidthPct)); // Biztosítjuk, hogy 1-100 között legyen
+   double widthRatio = widthPercent / 100.0;
+   
+   // Időtartam középpontja és a szélességhez igazított időpontok
    datetime tMiddle = t1 + (t2 - t1) / 2;
+   datetime tDuration = t2 - t1;
+   datetime tPadding = (tDuration * (1 - widthRatio)) / 2;
+   
+   // Új időpontok a százalékos szélesség alapján
+   datetime tLeft = t1 + tPadding;
+   datetime tRight = t2 - tPadding;
    
    string objName;
    
    // Gyertya körvonal (4 vonal)
    // Felső vonal
    objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[0], tfIndex, candleIndex);
-   ObjectCreate(objName, OBJ_TREND, 0, t1, bodyTop, t2, bodyTop);
+   ObjectCreate(objName, OBJ_TREND, 0, tLeft, bodyTop, tRight, bodyTop);
    ObjectSet(objName, OBJPROP_COLOR, currentColor);
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
@@ -95,7 +106,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    
    // Alsó vonal
    objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[1], tfIndex, candleIndex);
-   ObjectCreate(objName, OBJ_TREND, 0, t1, bodyBottom, t2, bodyBottom);
+   ObjectCreate(objName, OBJ_TREND, 0, tLeft, bodyBottom, tRight, bodyBottom);
    ObjectSet(objName, OBJPROP_COLOR, currentColor);
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
@@ -104,7 +115,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    
    // Bal oldali vonal
    objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[2], tfIndex, candleIndex);
-   ObjectCreate(objName, OBJ_TREND, 0, t1, bodyBottom, t1, bodyTop);
+   ObjectCreate(objName, OBJ_TREND, 0, tLeft, bodyBottom, tLeft, bodyTop);
    ObjectSet(objName, OBJPROP_COLOR, currentColor);
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
@@ -113,7 +124,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    
    // Jobb oldali vonal
    objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[3], tfIndex, candleIndex);
-   ObjectCreate(objName, OBJ_TREND, 0, t2, bodyBottom, t2, bodyTop);
+   ObjectCreate(objName, OBJ_TREND, 0, tRight, bodyBottom, tRight, bodyTop);
    ObjectSet(objName, OBJPROP_COLOR, currentColor);
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
