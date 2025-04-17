@@ -7,6 +7,7 @@
 //--- Paraméterek
 input string HigherTimeframes = "H1,H4,D1"; // Magasabb idősíkok vesszővel
 input int    BarsBack         = 30;         // Hány gyertyát mutasson visszamenőleg
+input int    RefreshSeconds   = 60;          // Frissítési időköz másodpercben
 
 // H1 beállítások
 input bool   ShowH1           = false;      // H1 gyertyák mutatása
@@ -32,6 +33,7 @@ input ENUM_LINE_STYLE LineStyleD1 = STYLE_DOT; // D1 körvonal stílusa
 // Globális változók
 string objPrefix = "MTC_";
 string objTypes[6] = {"Top_", "Bottom_", "Left_", "Right_", "UpperWick_", "LowerWick_"};
+datetime lastUpdateTime = 0; // Utolsó frissítés ideje
 
 //--- Segédfüggvény: Idősík szövegből ENUM_TIMEFRAMES
 int TimeframeFromString(string tf) {
@@ -174,9 +176,9 @@ void GetTimeframeSettings(int tf, bool &show, color &bullColor, color &bearColor
 }
 
 //+------------------------------------------------------------------+
-//| Fő rajzoló ciklus                                                |
+//| Gyertyák rajzolása                                               |
 //+------------------------------------------------------------------+
-int start() {
+void DrawCandles() {
    // Töröljük a régi objektumokat
    DeleteObjects();
 
@@ -228,6 +230,23 @@ int start() {
                    bullColor, bearColor, lineWidth, lineStyle);
       }
    }
+   
+   // Frissítjük az utolsó frissítés idejét
+   lastUpdateTime = TimeCurrent();
+}
+
+//+------------------------------------------------------------------+
+//| Fő rajzoló ciklus                                                |
+//+------------------------------------------------------------------+
+int start() {
+   // Ellenőrizzük, hogy eltelt-e a megadott idő az utolsó frissítés óta
+   datetime currentTime = TimeCurrent();
+   
+   // Ha még nem telt el a megadott idő, vagy ha ez az első futás (lastUpdateTime == 0)
+   if(lastUpdateTime == 0 || currentTime - lastUpdateTime >= RefreshSeconds) {
+      DrawCandles();
+   }
+   
    return(0);
 }
 
@@ -235,6 +254,8 @@ int start() {
 //| Indikátor inicializálása                                         |
 //+------------------------------------------------------------------+
 int init() {
+   // Első futáskor azonnal rajzoljuk ki a gyertyákat
+   lastUpdateTime = 0;
    return(0);
 }
 
