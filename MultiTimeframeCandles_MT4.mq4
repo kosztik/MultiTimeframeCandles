@@ -16,6 +16,7 @@ input color  ColorH1Bullish   = clrLime;    // H1 emelkedő gyertya színe
 input color  ColorH1Bearish   = clrRed;     // H1 csökkenő gyertya színe
 input int    LineWidthH1      = 1;          // H1 körvonal vastagsága
 input ENUM_LINE_STYLE LineStyleH1 = STYLE_DOT; // H1 körvonal stílusa
+input bool   H1InBackground   = true;       // H1 gyertyák a háttérben (true) vagy előtérben (false)
 
 // H4 beállítások
 input bool   ShowH4           = true;       // H4 gyertyák mutatása
@@ -23,6 +24,7 @@ input color  ColorH4Bullish   = clrGreen;   // H4 emelkedő gyertya színe
 input color  ColorH4Bearish   = clrFireBrick; // H4 csökkenő gyertya színe
 input int    LineWidthH4      = 2;          // H4 körvonal vastagsága
 input ENUM_LINE_STYLE LineStyleH4 = STYLE_SOLID; // H4 körvonal stílusa
+input bool   H4InBackground   = false;       // H4 gyertyák a háttérben (true) vagy előtérben (false)
 
 // D1 beállítások
 input bool   ShowD1           = false;      // D1 gyertyák mutatása
@@ -30,6 +32,7 @@ input color  ColorD1Bullish   = C'189,255,0'; // D1 emelkedő gyertya színe (Ye
 input color  ColorD1Bearish   = clrOrange;  // D1 csökkenő gyertya színe
 input int    LineWidthD1      = 1;          // D1 körvonal vastagsága
 input ENUM_LINE_STYLE LineStyleD1 = STYLE_DOT; // D1 körvonal stílusa
+input bool   D1InBackground   = true;       // D1 gyertyák a háttérben (true) vagy előtérben (false)
 
 // Globális változók
 string objPrefix = "MTC_";
@@ -70,7 +73,8 @@ void DeleteObjects() {
 //+------------------------------------------------------------------+
 void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2, 
                 double open, double high, double low, double close, 
-                color bullColor, color bearColor, int lineWidth, ENUM_LINE_STYLE lineStyle) {
+                color bullColor, color bearColor, int lineWidth, ENUM_LINE_STYLE lineStyle,
+                bool inBackground) {
    // Bullish vagy bearish gyertya?
    bool isBullish = close > open;
    color currentColor = isBullish ? bullColor : bearColor;
@@ -102,7 +106,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
    ObjectSet(objName, OBJPROP_RAY, false);
-   ObjectSet(objName, OBJPROP_BACK, true);
+   ObjectSet(objName, OBJPROP_BACK, inBackground);
    
    // Alsó vonal
    objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[1], tfIndex, candleIndex);
@@ -111,7 +115,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
    ObjectSet(objName, OBJPROP_RAY, false);
-   ObjectSet(objName, OBJPROP_BACK, true);
+   ObjectSet(objName, OBJPROP_BACK, inBackground);
    
    // Bal oldali vonal
    objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[2], tfIndex, candleIndex);
@@ -120,7 +124,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
    ObjectSet(objName, OBJPROP_RAY, false);
-   ObjectSet(objName, OBJPROP_BACK, true);
+   ObjectSet(objName, OBJPROP_BACK, inBackground);
    
    // Jobb oldali vonal
    objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[3], tfIndex, candleIndex);
@@ -129,7 +133,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
    ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
    ObjectSet(objName, OBJPROP_STYLE, lineStyle);
    ObjectSet(objName, OBJPROP_RAY, false);
-   ObjectSet(objName, OBJPROP_BACK, true);
+   ObjectSet(objName, OBJPROP_BACK, inBackground);
    
    // Felső kanóc
    if(high > bodyTop) {
@@ -139,7 +143,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
       ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
       ObjectSet(objName, OBJPROP_STYLE, lineStyle);
       ObjectSet(objName, OBJPROP_RAY, false);
-      ObjectSet(objName, OBJPROP_BACK, true);
+      ObjectSet(objName, OBJPROP_BACK, inBackground);
    }
    
    // Alsó kanóc
@@ -150,7 +154,7 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
       ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
       ObjectSet(objName, OBJPROP_STYLE, lineStyle);
       ObjectSet(objName, OBJPROP_RAY, false);
-      ObjectSet(objName, OBJPROP_BACK, true);
+      ObjectSet(objName, OBJPROP_BACK, inBackground);
    }
 }
 
@@ -158,31 +162,35 @@ void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2,
 //| Timeframe beállítások lekérése                                   |
 //+------------------------------------------------------------------+
 void GetTimeframeSettings(int tf, bool &show, color &bullColor, color &bearColor, 
-                         int &width, ENUM_LINE_STYLE &style) {
+                         int &width, ENUM_LINE_STYLE &style, bool &inBackground) {
    if(tf == PERIOD_H1) {
       show = ShowH1;
       bullColor = ColorH1Bullish;
       bearColor = ColorH1Bearish;
       width = LineWidthH1;
       style = LineStyleH1;
+      inBackground = H1InBackground;
    } else if(tf == PERIOD_H4) {
       show = ShowH4;
       bullColor = ColorH4Bullish;
       bearColor = ColorH4Bearish;
       width = LineWidthH4;
       style = LineStyleH4;
+      inBackground = H4InBackground;
    } else if(tf == PERIOD_D1) {
       show = ShowD1;
       bullColor = ColorD1Bullish;
       bearColor = ColorD1Bearish;
       width = LineWidthD1;
       style = LineStyleD1;
+      inBackground = D1InBackground;
    } else {
       show = false;
       bullColor = clrGray;
       bearColor = clrGray;
       width = 1;
       style = STYLE_DOT;
+      inBackground = true;
    }
 }
 
@@ -205,8 +213,9 @@ void DrawCandles() {
       color bullColor, bearColor;
       int lineWidth;
       ENUM_LINE_STYLE lineStyle;
+      bool inBackground;
       
-      GetTimeframeSettings(tf, show, bullColor, bearColor, lineWidth, lineStyle);
+      GetTimeframeSettings(tf, show, bullColor, bearColor, lineWidth, lineStyle, inBackground);
       if(!show) continue;
 
       // Magasabb idősík adatok lekérése
@@ -238,7 +247,7 @@ void DrawCandles() {
          }
          
          DrawCandle(i, j, t1, t2, hOpen[j], hHigh[j], hLow[j], hClose[j], 
-                   bullColor, bearColor, lineWidth, lineStyle);
+                   bullColor, bearColor, lineWidth, lineStyle, inBackground);
       }
    }
    
