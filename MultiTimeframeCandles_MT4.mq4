@@ -17,8 +17,8 @@ input ENUM_LINE_STYLE LineStyleH1 = STYLE_DOT; // H1 körvonal stílusa
 
 // H4 beállítások
 input bool   ShowH4           = true;       // H4 gyertyák mutatása
-input color  ColorH4Bullish   = clrGreen;    // H4 emelkedő gyertya színe
-input color  ColorH4Bearish   = clrFireBrick;     // H4 csökkenő gyertya színe
+input color  ColorH4Bullish   = clrGreen;   // H4 emelkedő gyertya színe
+input color  ColorH4Bearish   = clrFireBrick; // H4 csökkenő gyertya színe
 input int    LineWidthH4      = 2;          // H4 körvonal vastagsága
 input ENUM_LINE_STYLE LineStyleH4 = STYLE_SOLID; // H4 körvonal stílusa
 
@@ -29,192 +29,219 @@ input color  ColorD1Bearish   = clrOrange;  // D1 csökkenő gyertya színe
 input int    LineWidthD1      = 1;          // D1 körvonal vastagsága
 input ENUM_LINE_STYLE LineStyleD1 = STYLE_DOT; // D1 körvonal stílusa
 
+// Globális változók
+string objPrefix = "MTC_";
+string objTypes[6] = {"Top_", "Bottom_", "Left_", "Right_", "UpperWick_", "LowerWick_"};
+
 //--- Segédfüggvény: Idősík szövegből ENUM_TIMEFRAMES
 int TimeframeFromString(string tf) {
-   string up = tf;
-   for(int k=0; k<StringLen(tf); k++) {
-      int ch = StringGetChar(tf, k);
-      if(ch >= 97 && ch <= 122) // a-z
-         StringSetChar(up, k, ch - 32);
-   }
-   if(up=="M1")  return PERIOD_M1;
-   if(up=="M5")  return PERIOD_M5;
-   if(up=="M15") return PERIOD_M15;
-   if(up=="M30") return PERIOD_M30;
-   if(up=="H1")  return PERIOD_H1;
-   if(up=="H4")  return PERIOD_H4;
-   if(up=="D1")  return PERIOD_D1;
-   if(up=="W1")  return PERIOD_W1;
-   if(up=="MN1") return PERIOD_MN1;
+   StringToUpper(tf);
+   
+   if(tf=="M1")  return PERIOD_M1;
+   if(tf=="M5")  return PERIOD_M5;
+   if(tf=="M15") return PERIOD_M15;
+   if(tf=="M30") return PERIOD_M30;
+   if(tf=="H1")  return PERIOD_H1;
+   if(tf=="H4")  return PERIOD_H4;
+   if(tf=="D1")  return PERIOD_D1;
+   if(tf=="W1")  return PERIOD_W1;
+   if(tf=="MN1") return PERIOD_MN1;
    return 0;
+}
+
+//+------------------------------------------------------------------+
+//| Objektumok törlése                                               |
+//+------------------------------------------------------------------+
+void DeleteObjects() {
+   string name;
+   for(int i=ObjectsTotal()-1; i>=0; i--) {
+      name = ObjectName(i);
+      if(StringSubstr(name, 0, StringLen(objPrefix)) == objPrefix) {
+         ObjectDelete(name);
+      }
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Gyertya rajzolása                                                |
+//+------------------------------------------------------------------+
+void DrawCandle(int tfIndex, int candleIndex, datetime t1, datetime t2, 
+                double open, double high, double low, double close, 
+                color bullColor, color bearColor, int lineWidth, ENUM_LINE_STYLE lineStyle) {
+   // Bullish vagy bearish gyertya?
+   bool isBullish = close > open;
+   color currentColor = isBullish ? bullColor : bearColor;
+   
+   // Gyertya test teteje és alja
+   double bodyTop = MathMax(open, close);
+   double bodyBottom = MathMin(open, close);
+   
+   // Középpont a gyertya időtartamában
+   datetime tMiddle = t1 + (t2 - t1) / 2;
+   
+   string objName;
+   
+   // Gyertya körvonal (4 vonal)
+   // Felső vonal
+   objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[0], tfIndex, candleIndex);
+   ObjectCreate(objName, OBJ_TREND, 0, t1, bodyTop, t2, bodyTop);
+   ObjectSet(objName, OBJPROP_COLOR, currentColor);
+   ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
+   ObjectSet(objName, OBJPROP_STYLE, lineStyle);
+   ObjectSet(objName, OBJPROP_RAY, false);
+   ObjectSet(objName, OBJPROP_BACK, true);
+   
+   // Alsó vonal
+   objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[1], tfIndex, candleIndex);
+   ObjectCreate(objName, OBJ_TREND, 0, t1, bodyBottom, t2, bodyBottom);
+   ObjectSet(objName, OBJPROP_COLOR, currentColor);
+   ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
+   ObjectSet(objName, OBJPROP_STYLE, lineStyle);
+   ObjectSet(objName, OBJPROP_RAY, false);
+   ObjectSet(objName, OBJPROP_BACK, true);
+   
+   // Bal oldali vonal
+   objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[2], tfIndex, candleIndex);
+   ObjectCreate(objName, OBJ_TREND, 0, t1, bodyBottom, t1, bodyTop);
+   ObjectSet(objName, OBJPROP_COLOR, currentColor);
+   ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
+   ObjectSet(objName, OBJPROP_STYLE, lineStyle);
+   ObjectSet(objName, OBJPROP_RAY, false);
+   ObjectSet(objName, OBJPROP_BACK, true);
+   
+   // Jobb oldali vonal
+   objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[3], tfIndex, candleIndex);
+   ObjectCreate(objName, OBJ_TREND, 0, t2, bodyBottom, t2, bodyTop);
+   ObjectSet(objName, OBJPROP_COLOR, currentColor);
+   ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
+   ObjectSet(objName, OBJPROP_STYLE, lineStyle);
+   ObjectSet(objName, OBJPROP_RAY, false);
+   ObjectSet(objName, OBJPROP_BACK, true);
+   
+   // Felső kanóc
+   if(high > bodyTop) {
+      objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[4], tfIndex, candleIndex);
+      ObjectCreate(objName, OBJ_TREND, 0, tMiddle, bodyTop, tMiddle, high);
+      ObjectSet(objName, OBJPROP_COLOR, currentColor);
+      ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
+      ObjectSet(objName, OBJPROP_STYLE, lineStyle);
+      ObjectSet(objName, OBJPROP_RAY, false);
+      ObjectSet(objName, OBJPROP_BACK, true);
+   }
+   
+   // Alsó kanóc
+   if(low < bodyBottom) {
+      objName = StringFormat("%s%s%d_%d", objPrefix, objTypes[5], tfIndex, candleIndex);
+      ObjectCreate(objName, OBJ_TREND, 0, tMiddle, bodyBottom, tMiddle, low);
+      ObjectSet(objName, OBJPROP_COLOR, currentColor);
+      ObjectSet(objName, OBJPROP_WIDTH, lineWidth);
+      ObjectSet(objName, OBJPROP_STYLE, lineStyle);
+      ObjectSet(objName, OBJPROP_RAY, false);
+      ObjectSet(objName, OBJPROP_BACK, true);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Timeframe beállítások lekérése                                   |
+//+------------------------------------------------------------------+
+void GetTimeframeSettings(int tf, bool &show, color &bullColor, color &bearColor, 
+                         int &width, ENUM_LINE_STYLE &style) {
+   if(tf == PERIOD_H1) {
+      show = ShowH1;
+      bullColor = ColorH1Bullish;
+      bearColor = ColorH1Bearish;
+      width = LineWidthH1;
+      style = LineStyleH1;
+   } else if(tf == PERIOD_H4) {
+      show = ShowH4;
+      bullColor = ColorH4Bullish;
+      bearColor = ColorH4Bearish;
+      width = LineWidthH4;
+      style = LineStyleH4;
+   } else if(tf == PERIOD_D1) {
+      show = ShowD1;
+      bullColor = ColorD1Bullish;
+      bearColor = ColorD1Bearish;
+      width = LineWidthD1;
+      style = LineStyleD1;
+   } else {
+      show = false;
+      bullColor = clrGray;
+      bearColor = clrGray;
+      width = 1;
+      style = STYLE_DOT;
+   }
 }
 
 //+------------------------------------------------------------------+
 //| Fő rajzoló ciklus                                                |
 //+------------------------------------------------------------------+
-int start()
-{
-   string objNameTop, objNameBottom, objNameLeft, objNameRight;
-   string objNameUpperWick, objNameLowerWick;
-   
+int start() {
    // Töröljük a régi objektumokat
-   for(int tfidx=0; tfidx<3; tfidx++) {
-      for(int j1=0; j1<BarsBack+1; j1++) { // +1 a jelenlegi gyertyának
-         objNameTop = StringFormat("MTC_Top_%d_%d", tfidx, j1);
-         objNameBottom = StringFormat("MTC_Bottom_%d_%d", tfidx, j1);
-         objNameLeft = StringFormat("MTC_Left_%d_%d", tfidx, j1);
-         objNameRight = StringFormat("MTC_Right_%d_%d", tfidx, j1);
-         objNameUpperWick = StringFormat("MTC_UpperWick_%d_%d", tfidx, j1);
-         objNameLowerWick = StringFormat("MTC_LowerWick_%d_%d", tfidx, j1);
-         
-         ObjectDelete(objNameTop);
-         ObjectDelete(objNameBottom);
-         ObjectDelete(objNameLeft);
-         ObjectDelete(objNameRight);
-         ObjectDelete(objNameUpperWick);
-         ObjectDelete(objNameLowerWick);
-      }
-   }
+   DeleteObjects();
 
-   string tfArr[3];
+   string tfArr[10]; // Megnövelt méret a biztonság kedvéért
    int tfCount = StringSplit(HigherTimeframes, ',', tfArr);
+   int bars = BarsBack + 1; // +1 a jelenlegi gyertyának
 
-   for(int i=0; i<tfCount; i++)
-   {
+   for(int i=0; i<tfCount; i++) {
       int tf = TimeframeFromString(tfArr[i]);
-      if(tf<=Period()) continue; // Csak magasabb idősík
+      if(tf <= Period()) continue; // Csak magasabb idősík
 
-      bool show = false;
-      color colBullish = clrGray;
-      color colBearish = clrGray;
-      int lineWidth = 1;
-      ENUM_LINE_STYLE lineStyle = STYLE_DOT;
+      bool show;
+      color bullColor, bearColor;
+      int lineWidth;
+      ENUM_LINE_STYLE lineStyle;
       
-      if(tf==PERIOD_H1)  { 
-         show=ShowH1; 
-         colBullish=ColorH1Bullish; 
-         colBearish=ColorH1Bearish;
-         lineWidth=LineWidthH1;
-         lineStyle=LineStyleH1;
-      }
-      if(tf==PERIOD_H4)  { 
-         show=ShowH4; 
-         colBullish=ColorH4Bullish; 
-         colBearish=ColorH4Bearish;
-         lineWidth=LineWidthH4;
-         lineStyle=LineStyleH4;
-      }
-      if(tf==PERIOD_D1)  { 
-         show=ShowD1; 
-         colBullish=ColorD1Bullish; 
-         colBearish=ColorD1Bearish;
-         lineWidth=LineWidthD1;
-         lineStyle=LineStyleD1;
-      }
+      GetTimeframeSettings(tf, show, bullColor, bearColor, lineWidth, lineStyle);
       if(!show) continue;
-
-      int bars = BarsBack + 1; // +1 a jelenlegi gyertyának
 
       // Magasabb idősík adatok lekérése
       double hOpen[], hHigh[], hLow[], hClose[];
       datetime hTime[];
-      ArrayResize(hOpen, bars);
-      ArrayResize(hHigh, bars);
-      ArrayResize(hLow, bars);
-      ArrayResize(hClose, bars);
-      ArrayResize(hTime, bars);
-
-      for(int b=0; b<bars; b++) {
-         hOpen[b]  = iOpen(Symbol(), tf, b);
-         hHigh[b]  = iHigh(Symbol(), tf, b);
-         hLow[b]   = iLow(Symbol(), tf, b);
-         hClose[b] = iClose(Symbol(), tf, b);
-         hTime[b]  = iTime(Symbol(), tf, b);
-      }
+      
+      ArraySetAsSeries(hOpen, true);
+      ArraySetAsSeries(hHigh, true);
+      ArraySetAsSeries(hLow, true);
+      ArraySetAsSeries(hClose, true);
+      ArraySetAsSeries(hTime, true);
+      
+      CopyOpen(Symbol(), tf, 0, bars, hOpen);
+      CopyHigh(Symbol(), tf, 0, bars, hHigh);
+      CopyLow(Symbol(), tf, 0, bars, hLow);
+      CopyClose(Symbol(), tf, 0, bars, hClose);
+      CopyTime(Symbol(), tf, 0, bars, hTime);
 
       // Gyertyák kirajzolása
-      for(int j2=0; j2<bars; j2++)
-      {
-         // Bullish vagy bearish gyertya?
-         bool isBullish = hClose[j2] > hOpen[j2];
-         color currentColor = isBullish ? colBullish : colBearish;
-         
-         datetime t1 = hTime[j2];
+      for(int j=0; j<bars; j++) {
+         datetime t1 = hTime[j];
          datetime t2;
          
          // Ha ez az utolsó (jelenlegi) gyertya, akkor a jobb szélét a chart jelen idejére állítjuk
-         if(j2 == 0) {
+         if(j == 0) {
             t2 = Time[0]; // Jelenlegi chart idő
          } else {
-            t2 = hTime[j2-1]; // Előző magasabb timeframe gyertya kezdete
+            t2 = hTime[j-1]; // Előző magasabb timeframe gyertya kezdete
          }
          
-         // Gyertya test teteje és alja
-         double bodyTop = MathMax(hOpen[j2], hClose[j2]);
-         double bodyBottom = MathMin(hOpen[j2], hClose[j2]);
-         
-         // Gyertya kanócai
-         double upperWick = hHigh[j2];
-         double lowerWick = hLow[j2];
-         
-         // Középpont a gyertya időtartamában
-         datetime tMiddle = t1 + (t2 - t1) / 2;
-         
-         // Gyertya körvonal (4 vonal)
-         objNameTop = StringFormat("MTC_Top_%d_%d", i, j2);
-         ObjectCreate(objNameTop, OBJ_TREND, 0, t1, bodyTop, t2, bodyTop);
-         ObjectSet(objNameTop, OBJPROP_COLOR, currentColor);
-         ObjectSet(objNameTop, OBJPROP_WIDTH, lineWidth);
-         ObjectSet(objNameTop, OBJPROP_STYLE, lineStyle);
-         ObjectSet(objNameTop, OBJPROP_RAY, false);
-         ObjectSet(objNameTop, OBJPROP_BACK, true);
-         
-         objNameBottom = StringFormat("MTC_Bottom_%d_%d", i, j2);
-         ObjectCreate(objNameBottom, OBJ_TREND, 0, t1, bodyBottom, t2, bodyBottom);
-         ObjectSet(objNameBottom, OBJPROP_COLOR, currentColor);
-         ObjectSet(objNameBottom, OBJPROP_WIDTH, lineWidth);
-         ObjectSet(objNameBottom, OBJPROP_STYLE, lineStyle);
-         ObjectSet(objNameBottom, OBJPROP_RAY, false);
-         ObjectSet(objNameBottom, OBJPROP_BACK, true);
-         
-         objNameLeft = StringFormat("MTC_Left_%d_%d", i, j2);
-         ObjectCreate(objNameLeft, OBJ_TREND, 0, t1, bodyBottom, t1, bodyTop);
-         ObjectSet(objNameLeft, OBJPROP_COLOR, currentColor);
-         ObjectSet(objNameLeft, OBJPROP_WIDTH, lineWidth);
-         ObjectSet(objNameLeft, OBJPROP_STYLE, lineStyle);
-         ObjectSet(objNameLeft, OBJPROP_RAY, false);
-         ObjectSet(objNameLeft, OBJPROP_BACK, true);
-         
-         objNameRight = StringFormat("MTC_Right_%d_%d", i, j2);
-         ObjectCreate(objNameRight, OBJ_TREND, 0, t2, bodyBottom, t2, bodyTop);
-         ObjectSet(objNameRight, OBJPROP_COLOR, currentColor);
-         ObjectSet(objNameRight, OBJPROP_WIDTH, lineWidth);
-         ObjectSet(objNameRight, OBJPROP_STYLE, lineStyle);
-         ObjectSet(objNameRight, OBJPROP_RAY, false);
-         ObjectSet(objNameRight, OBJPROP_BACK, true);
-         
-         // Felső kanóc
-         if(upperWick > bodyTop) {
-            objNameUpperWick = StringFormat("MTC_UpperWick_%d_%d", i, j2);
-            ObjectCreate(objNameUpperWick, OBJ_TREND, 0, tMiddle, bodyTop, tMiddle, upperWick);
-            ObjectSet(objNameUpperWick, OBJPROP_COLOR, currentColor);
-            ObjectSet(objNameUpperWick, OBJPROP_WIDTH, lineWidth);
-            ObjectSet(objNameUpperWick, OBJPROP_STYLE, lineStyle);
-            ObjectSet(objNameUpperWick, OBJPROP_RAY, false);
-            ObjectSet(objNameUpperWick, OBJPROP_BACK, true);
-         }
-         
-         // Alsó kanóc
-         if(lowerWick < bodyBottom) {
-            objNameLowerWick = StringFormat("MTC_LowerWick_%d_%d", i, j2);
-            ObjectCreate(objNameLowerWick, OBJ_TREND, 0, tMiddle, bodyBottom, tMiddle, lowerWick);
-            ObjectSet(objNameLowerWick, OBJPROP_COLOR, currentColor);
-            ObjectSet(objNameLowerWick, OBJPROP_WIDTH, lineWidth);
-            ObjectSet(objNameLowerWick, OBJPROP_STYLE, lineStyle);
-            ObjectSet(objNameLowerWick, OBJPROP_RAY, false);
-            ObjectSet(objNameLowerWick, OBJPROP_BACK, true);
-         }
+         DrawCandle(i, j, t1, t2, hOpen[j], hHigh[j], hLow[j], hClose[j], 
+                   bullColor, bearColor, lineWidth, lineStyle);
       }
    }
+   return(0);
+}
+
+//+------------------------------------------------------------------+
+//| Indikátor inicializálása                                         |
+//+------------------------------------------------------------------+
+int init() {
+   return(0);
+}
+
+//+------------------------------------------------------------------+
+//| Indikátor deinicializálása                                       |
+//+------------------------------------------------------------------+
+int deinit() {
+   DeleteObjects();
    return(0);
 }
